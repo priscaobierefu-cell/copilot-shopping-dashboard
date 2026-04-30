@@ -829,8 +829,8 @@ if page == "Current Wave" and selected_wave_id:
                 **PLOTLY_LAYOUT,
                 xaxis=dict(showgrid=False, tickfont=dict(size=11, color='#7A6A56')),
                 yaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
-                height=300,
-                margin=dict(l=20, r=20, t=40, b=60),
+                height=350,
+                margin=dict(l=20, r=20, t=50, b=60),
                 bargap=0.4,
             )
             st.plotly_chart(fig_sat, use_container_width=True, key="sat_dist_chart")
