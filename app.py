@@ -723,6 +723,20 @@ if page == "Current Wave" and selected_wave_id:
     stage_data = scores.get('stage_data', {})
     wave_slug = current_wave['wave_label'].replace(' ', '_')
 
+    # Build all_waves data for trends in report
+    all_waves_for_report = []
+    for w in waves:
+        ws = get_wave_scores(w['id'])
+        all_waves_for_report.append({
+            'wave_label': w['wave_label'],
+            'wave_date': w['wave_date'],
+            'overall_score': w['overall_score'],
+            'sat_score': w['sat_score'],
+            'n_responses': w['n_responses'],
+            'domains': ws.get('domains', {}),
+            'metrics': ws.get('metrics', []),
+        })
+
     # -- Download Report --
     st.markdown("##### Download Report")
     st.caption("Full scorecard report with all sections — KPIs, metrics, heatmap, satisfaction, and user voices.")
@@ -731,7 +745,7 @@ if page == "Current Wave" and selected_wave_id:
     with report_cols[0]:
         try:
             from report_template import generate_html_report
-            html_report = generate_html_report(scores, current_wave['wave_label'], current_wave['wave_date'])
+            html_report = generate_html_report(scores, current_wave['wave_label'], current_wave['wave_date'], all_waves=all_waves_for_report)
             st.download_button(
                 "Download HTML Report",
                 html_report.encode('utf-8'),
@@ -746,7 +760,7 @@ if page == "Current Wave" and selected_wave_id:
     with report_cols[1]:
         try:
             from report_template import generate_html_report
-            html_for_pdf = generate_html_report(scores, current_wave['wave_label'], current_wave['wave_date'])
+            html_for_pdf = generate_html_report(scores, current_wave['wave_label'], current_wave['wave_date'], all_waves=all_waves_for_report)
             print_additions = '''
 <style>
 @media print {
@@ -782,7 +796,7 @@ document.addEventListener('DOMContentLoaded', function() {
     # -- ZIP for VibeHub --
     try:
         from report_template import generate_html_report as _gen
-        html_zip = _gen(scores, current_wave['wave_label'], current_wave['wave_date'])
+        html_zip = _gen(scores, current_wave['wave_label'], current_wave['wave_date'], all_waves=all_waves_for_report)
         zip_buf = BytesIO()
         with zipfile.ZipFile(zip_buf, 'w', zipfile.ZIP_DEFLATED) as zf:
             zf.writestr("index.html", html_zip)

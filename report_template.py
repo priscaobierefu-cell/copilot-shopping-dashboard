@@ -17,8 +17,16 @@ SATISFACTION_LABELS = {
 }
 
 
-def generate_html_report(scores: dict, wave_label: str, wave_date: str) -> str:
-    """Generate a standalone HTML scorecard report."""
+def generate_html_report(scores: dict, wave_label: str, wave_date: str, all_waves: list = None) -> str:
+    """Generate a standalone HTML scorecard report.
+    
+    Args:
+        scores: current wave scores dict
+        wave_label: e.g. 'Wave 1 Baseline'
+        wave_date: e.g. '2026-04-29'
+        all_waves: optional list of dicts with keys: wave_label, wave_date, overall_score, sat_score, domains, metrics
+                   If provided and len >= 2, a Trends section is shown.
+    """
 
     # Build JS DATA object
     js_metrics = []
@@ -73,14 +81,15 @@ def generate_html_report(scores: dict, wave_label: str, wave_date: str) -> str:
 
     # Build domain cards HTML
     domain_cards = ''
-    domain_colors = {'Quality': 'var(--domain-quality)', 'Trust & Confidence': 'var(--domain-trust)', 'Privacy & Security': 'var(--domain-privacy)'}
+    domain_bg_colors = {'Quality': '#2E4D4D', 'Trust & Confidence': '#5B7E5B', 'Privacy & Security': '#C07D10'}
     for d in DOMAIN_ORDER:
         dd = domains.get(d, {})
+        bg = domain_bg_colors.get(d, '#2E4D4D')
         domain_cards += f'''
-        <div class="stat-card">
-          <div class="stat-card-label">{html.escape(d)}</div>
-          <div class="stat-card-number" style="color:{domain_colors.get(d, 'var(--text)')}">{dd.get('score_100', '—')}</div>
-          <div class="stat-card-sub">{dd.get('n_metrics', 0)} metrics &middot; mean {dd.get('mean_1_5', '—')}</div>
+        <div class="stat-card" style="background:{bg};color:#FEF9ED">
+          <div class="stat-card-label" style="color:rgba(254,249,237,0.6)">{html.escape(d)}</div>
+          <div class="stat-card-number" style="color:#FEF9ED">{dd.get('score_100', '—')}</div>
+          <div class="stat-card-sub" style="color:rgba(254,249,237,0.6)">{dd.get('n_metrics', 0)} metrics &middot; mean {dd.get('mean_1_5', '—')}</div>
         </div>'''
 
     # Build satisfaction stage cards
@@ -150,6 +159,23 @@ def generate_html_report(scores: dict, wave_label: str, wave_date: str) -> str:
 
     # Pre-compute sat_dist JSON to avoid f-string brace parsing issues
     sat_dist_json = json.dumps({str(k): v for k, v in sat_dist.items()})
+
+    # ── Build Trends Section ──────────────────────────────────────────
+    trends_html = ''
+    if all_waves and len(all_waves) >= 2:
+        trends_html = _build_trends_section(all_waves, wave_label)
+    elif all_waves and len(all_waves) == 1:
+        trends_html = '''
+<hr class="chapter-divider">
+<section id="trends">
+  <div class="container">
+    <div class="fade-in">
+      <p class="section-label">Historical</p>
+      <h2 class="section-title">Trends</h2>
+      <p class="section-desc">Wave-over-wave trends will appear here once a second wave is collected. This is the baseline measurement.</p>
+    </div>
+  </div>
+</section>'''
 
     # Build Contacts & Related Docs section
     contributors_raw = scores.get('contributors', '')
@@ -497,6 +523,29 @@ section {{ padding: 4rem 0; }}
 
 .footer {{ text-align: center; padding: 3rem 2rem; font-size: 0.78rem; color: var(--text-muted); border-top: 1px solid var(--border); }}
 
+/* ── Trends Section ── */
+.trend-chart-wrap {{
+  background: var(--bg-card); border-radius: var(--radius); padding: 2rem;
+  box-shadow: var(--shadow); margin-bottom: 1.5rem;
+}}
+.trend-chart-wrap h3 {{
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--text-muted); margin-bottom: 1.2rem;
+}}
+.trend-plotly {{ width: 100%; }}
+
+.delta-table {{ width: 100%; border-collapse: separate; border-spacing: 0 2px; font-size: 0.85rem; }}
+.delta-table th {{
+  padding: 0.6rem 0.75rem; text-align: left; font-size: 0.7rem;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted);
+  border-bottom: 2px solid var(--border);
+}}
+.delta-table td {{ padding: 0.55rem 0.75rem; }}
+.delta-table tr:nth-child(even) td {{ background: rgba(239,226,209,0.3); border-radius: 6px; }}
+.delta-up {{ color: var(--green); font-weight: 600; }}
+.delta-down {{ color: var(--red); font-weight: 600; }}
+.delta-flat {{ color: var(--text-muted); }}
+
 @media (max-width: 768px) {{
   .bar-row {{ grid-template-columns: 120px 1fr 45px 18px; gap: 0.5rem; }}
   .bar-drawer-inner {{ margin-left: 120px; margin-right: 63px; gap: 1rem; }}
@@ -518,6 +567,7 @@ section {{ padding: 4rem 0; }}
   <div class="sticky-nav-inner">
     <a href="#hero">Overview</a>
     <a href="#kpi">KPIs</a>
+    <a href="#trends">Trends</a>
     <a href="#metrics">Metrics</a>
     <a href="#stages">Journey Stages</a>
     <a href="#satisfaction">Satisfaction</a>
@@ -573,6 +623,8 @@ section {{ padding: 4rem 0; }}
     </div>
   </div>
 </section>
+
+{trends_html}
 
 <hr class="chapter-divider">
 
@@ -972,3 +1024,185 @@ document.addEventListener('DOMContentLoaded', () => {{
 </script>
 </body>
 </html>'''
+
+
+def _build_trends_section(all_waves, current_wave_label):
+    """Build HTML for the wave-over-wave trends section with Plotly.js charts and delta table."""
+
+    domain_colors = {
+        'Quality': '#2E4D4D',
+        'Trust & Confidence': '#5B7E5B',
+        'Privacy & Security': '#C07D10',
+    }
+
+    waves = sorted(all_waves, key=lambda w: w.get('wave_date', ''))
+    n_waves = len(waves)
+    wave_labels = [w.get('wave_label', f'Wave {i+1}') for i, w in enumerate(waves)]
+
+    # ── Plotly data: Overall + Satisfaction ──
+    overall_vals = [w.get('overall_score', 0) for w in waves]
+    sat_vals = [w.get('sat_score', 0) for w in waves]
+
+    overall_trace = json.dumps({
+        'x': wave_labels, 'y': overall_vals,
+        'mode': 'lines+markers', 'name': 'Overall',
+        'line': {'color': '#3B230E', 'width': 3},
+        'marker': {'size': 10, 'color': '#3B230E'},
+    })
+    sat_trace = json.dumps({
+        'x': wave_labels, 'y': sat_vals,
+        'mode': 'lines+markers', 'name': 'Satisfaction',
+        'line': {'color': '#C07D10', 'width': 2, 'dash': 'dot'},
+        'marker': {'size': 8, 'color': '#C07D10'},
+    })
+
+    plotly_layout = json.dumps({
+        'paper_bgcolor': 'rgba(0,0,0,0)',
+        'plot_bgcolor': 'rgba(0,0,0,0)',
+        'font': {'family': 'Segoe UI, system-ui, sans-serif', 'color': '#3B230E', 'size': 13},
+        'hoverlabel': {'bgcolor': '#EFE2D1', 'font_color': '#3B230E', 'font_size': 12, 'bordercolor': '#D4C4AE'},
+        'yaxis': {'range': [0, 100], 'title': 'Score', 'gridcolor': '#E8DBC8', 'zeroline': False},
+        'xaxis': {'showgrid': False},
+        'legend': {'orientation': 'h', 'y': -0.15},
+        'height': 350,
+        'margin': {'l': 50, 'r': 20, 't': 20, 'b': 50},
+        'showlegend': True,
+    })
+
+    # ── Plotly data: Domain Scores ──
+    domain_traces = ''
+    for domain, color in domain_colors.items():
+        vals = []
+        for w in waves:
+            d = w.get('domains', {}).get(domain, {})
+            vals.append(d.get('score_100', 0))
+        trace = json.dumps({
+            'x': wave_labels, 'y': vals,
+            'mode': 'lines+markers', 'name': domain,
+            'line': {'color': color, 'width': 2.5},
+            'marker': {'size': 8, 'color': color},
+        })
+        domain_traces += f'{trace},'
+
+    domain_layout = json.dumps({
+        'paper_bgcolor': 'rgba(0,0,0,0)',
+        'plot_bgcolor': 'rgba(0,0,0,0)',
+        'font': {'family': 'Segoe UI, system-ui, sans-serif', 'color': '#3B230E', 'size': 13},
+        'hoverlabel': {'bgcolor': '#EFE2D1', 'font_color': '#3B230E', 'font_size': 12, 'bordercolor': '#D4C4AE'},
+        'yaxis': {'range': [0, 100], 'title': 'Score', 'gridcolor': '#E8DBC8', 'zeroline': False},
+        'xaxis': {'showgrid': False},
+        'legend': {'orientation': 'h', 'y': -0.15},
+        'height': 350,
+        'margin': {'l': 50, 'r': 20, 't': 20, 'b': 50},
+        'showlegend': True,
+    })
+
+    # ── Delta Table: Current vs Previous ──
+    prev_wave = None
+    curr_wave = None
+    for w in waves:
+        if w.get('wave_label') == current_wave_label:
+            curr_wave = w
+        else:
+            prev_wave = w
+
+    if not curr_wave:
+        curr_wave = waves[-1]
+    if not prev_wave and len(waves) >= 2:
+        prev_wave = waves[-2]
+
+    delta_rows = ''
+    if prev_wave and curr_wave:
+        prev_metrics = {m['name']: m for m in prev_wave.get('metrics', [])}
+        curr_metrics = {m['name']: m for m in curr_wave.get('metrics', [])}
+
+        for m_name in [m['name'] for m in curr_wave.get('metrics', [])]:
+            curr_m = curr_metrics.get(m_name, {})
+            prev_m = prev_metrics.get(m_name, {})
+            curr_score = curr_m.get('score_100', 0)
+            prev_score = prev_m.get('score_100', 0)
+
+            if prev_score:
+                diff = round(curr_score - prev_score, 1)
+                if diff > 0:
+                    arrow = '&#9650;'
+                    css = 'delta-up'
+                elif diff < 0:
+                    arrow = '&#9660;'
+                    css = 'delta-down'
+                else:
+                    arrow = '&ndash;'
+                    css = 'delta-flat'
+                delta_rows += f'''
+                <tr>
+                  <td style="font-weight:500">{html.escape(m_name)}</td>
+                  <td style="font-weight:500">{html.escape(curr_m.get('domain', ''))}</td>
+                  <td style="text-align:center">{prev_score}</td>
+                  <td style="text-align:center;font-weight:600">{curr_score}</td>
+                  <td style="text-align:center" class="{css}">{arrow} {abs(diff)}</td>
+                </tr>'''
+            else:
+                delta_rows += f'''
+                <tr>
+                  <td style="font-weight:500">{html.escape(m_name)}</td>
+                  <td style="font-weight:500">{html.escape(curr_m.get('domain', ''))}</td>
+                  <td style="text-align:center;color:#A89A88">&ndash;</td>
+                  <td style="text-align:center;font-weight:600">{curr_score}</td>
+                  <td style="text-align:center;color:#A89A88">New</td>
+                </tr>'''
+
+    prev_label = html.escape(prev_wave.get('wave_label', 'Previous')) if prev_wave else 'Previous'
+    curr_label_esc = html.escape(current_wave_label)
+
+    delta_table = ''
+    if delta_rows:
+        delta_table = f'''
+    <div class="trend-chart-wrap fade-in">
+      <h3>Metric Changes: {prev_label} &rarr; {curr_label_esc}</h3>
+      <table class="delta-table">
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th>Domain</th>
+            <th style="text-align:center">{prev_label}</th>
+            <th style="text-align:center">{curr_label_esc}</th>
+            <th style="text-align:center">Change</th>
+          </tr>
+        </thead>
+        <tbody>
+          {delta_rows}
+        </tbody>
+      </table>
+    </div>'''
+
+    return f'''
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<hr class="chapter-divider">
+
+<section id="trends">
+  <div class="container">
+    <div class="fade-in">
+      <p class="section-label">Historical</p>
+      <h2 class="section-title">Trends</h2>
+      <p class="section-desc">How scores have changed across {n_waves} measurement waves.</p>
+    </div>
+
+    <div class="trend-chart-wrap fade-in">
+      <h3>Overall Score &amp; Satisfaction</h3>
+      <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1rem;line-height:1.6"><strong>Overall</strong> = weighted composite of 3 domains (Quality: 40%, Trust &amp; Confidence: 40%, Privacy &amp; Security: 20%) on a 0&ndash;100 scale.<br><strong>Satisfaction (CSAT)</strong> = standalone contextual KPI, tracked separately and not included in the Overall score.</p>
+      <div id="trendOverallChart" class="trend-plotly"></div>
+    </div>
+
+    <div class="trend-chart-wrap fade-in">
+      <h3>Domain Scores</h3>
+      <div id="trendDomainChart" class="trend-plotly"></div>
+    </div>
+
+    {delta_table}
+  </div>
+</section>
+
+<script>
+Plotly.newPlot('trendOverallChart', [{overall_trace}, {sat_trace}], {plotly_layout}, {{responsive: true, displayModeBar: false}});
+Plotly.newPlot('trendDomainChart', [{domain_traces.rstrip(',')}], {domain_layout}, {{responsive: true, displayModeBar: false}});
+</script>'''
