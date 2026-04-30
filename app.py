@@ -382,7 +382,6 @@ if page == "Current Wave" and selected_wave_id:
     with tab_metrics:
         st.caption("DEEP DIVE")
         st.markdown(f"## All {len(scores.get('metrics', []))} Metrics")
-        st.markdown("*Click any metric to expand its distribution and qualitative themes.*")
         st.markdown("")
 
         prev_metric_lookup = {}
@@ -396,62 +395,52 @@ if page == "Current Wave" and selected_wave_id:
             'Privacy & Security': '#C07D10',
         }
 
-        # Survey questions for tooltips
-        survey_questions = {
-            'Accuracy': 'How accurate was the shopping information provided by Copilot?',
-            'Relevance': 'How relevant was Copilot\u2019s responses to what you wanted or needed?',
-            'Personalization': 'How personalized was Copilot\u2019s response to your needs and preferences?',
-            'Trustworthiness': 'Overall, how trustworthy and reliable are the sources of information in the Copilot responses?',
-            'Data Protection': 'How protected do you think your data is while viewing the shopping information provided by Copilot?',
-            'Comfort Sharing Info': 'How comfortable are you (or would you feel) sharing personal information with Copilot during shopping?',
-            'Privacy-Respecting': 'How well did Copilot respect your privacy in its shopping response?',
-            'Clarity': 'How clear was what you should do next when looking at the responses provided by Copilot?',
-            'Intuitiveness': 'How easy was it to understand and use the shopping information Copilot gave you?',
-            'Ease of Finding Info': 'How easy was it to find the product/service information you were interested in from Copilot\u2019s response?',
-            'Helpfulness': 'How helpful was the Copilot\u2019s shopping information in giving you clear steps that saved you time and effort?',
-            'Visual Appeal': 'Overall, how visually appealing was the Copilot\u2019s shopping information?',
-            'Proactiveness': 'How well did the Copilot responses anticipate your next steps, offering ideas or guidance before you had to ask, reducing the need for follow-ups?',
-        }
-
         for domain in DOMAIN_ORDER:
             domain_metrics = [m for m in scores['metrics'] if m['domain'] == domain]
             domain_metrics.sort(key=lambda x: -x['score_100'])
+
+            # Build horizontal bar chart for this domain
+            names = [m['name'] for m in reversed(domain_metrics)]
+            vals = [m['score_100'] for m in reversed(domain_metrics)]
             color = domain_colors_map[domain]
 
-            st.markdown(f"""<div style="font-size:0.72rem;font-weight:600;letter-spacing:0.12em;
-                text-transform:uppercase;color:#7A6A56;margin-bottom:0.5rem;padding-bottom:0.4rem;
-                border-bottom:1px solid #D4C4AE;margin-top:1.5rem">{domain}</div>""", unsafe_allow_html=True)
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                y=names, x=vals,
+                orientation='h',
+                marker=dict(color=color, opacity=0.8, cornerradius=4),
+                text=[f"  {v}" for v in vals],
+                textposition='outside',
+                textfont=dict(size=13, color='#3B230E', family="Georgia, serif"),
+                hovertemplate='%{y}: %{x}/100<extra></extra>',
+            ))
+            fig.update_layout(
+                **PLOTLY_LAYOUT,
+                title=dict(text=domain.upper(), font=dict(size=11, color='#7A6A56',
+                           family="Segoe UI"), x=0, y=0.98),
+                xaxis=dict(range=[0, 105], showticklabels=False, showgrid=False, zeroline=False),
+                yaxis=dict(showgrid=False, tickfont=dict(size=13)),
+                height=max(140, len(domain_metrics) * 45 + 50),
+                margin=dict(l=160, r=50, t=30, b=10),
+                bargap=0.35,
+            )
+            st.plotly_chart(fig, use_container_width=True, key=f"bar_{domain}")
 
-            for m in domain_metrics:
-                question = survey_questions.get(m['name'], '')
-                q_help = f" — *{question}*" if question else ''
+            # Distribution — clickable metric selector with clear label
+            metric_names = [m['name'] for m in domain_metrics]
+            selected_metric = st.selectbox(
+                f"Select a metric to see its distribution:",
+                ["Select a metric..."] + metric_names,
+                key=f"dist_{domain}",
+            )
 
-                with st.expander(f"**{m['name']}** — {m['score_100']}/100{q_help}"):
-                    # Score bar
-                    bar_html = f'''
-                    <div style="display:flex;align-items:center;gap:0.8rem;margin-bottom:1rem">
-                        <div style="flex:1;height:28px;background:#E8DBC8;border-radius:6px;overflow:hidden">
-                            <div style="width:{m['score_100']}%;height:100%;background:{color};border-radius:6px;opacity:0.85"></div>
-                        </div>
-                        <div style="font-weight:700;font-size:1rem;min-width:50px">{m['score_100']}/100</div>
-                    </div>'''
-                    st.markdown(bar_html, unsafe_allow_html=True)
+            if selected_metric != "Select a metric...":
+                m = next(mt for mt in domain_metrics if mt['name'] == selected_metric)
+                dist = scores.get('distributions', {}).get(m['name'], {})
 
-                    # Stats row
-                    stat_cols = st.columns(4)
-                    stat_cols[0].metric("Mean", f"{m['mean_1_5']} / 5")
-                    stat_cols[1].metric("Score", f"{m['score_100']} / 100")
-                    stat_cols[2].metric("SD", f"{m['sd']}")
-                    stat_cols[3].metric("N", f"{m['n']}")
-
-                    prev_val = prev_metric_lookup.get(m['name'])
-                    if prev_val:
-                        diff = round(m['score_100'] - prev_val, 1)
-                        st.markdown(f"**vs Prev Wave:** {'+' if diff > 0 else ''}{diff}")
-
-                    # Distribution chart
-                    dist = scores.get('distributions', {}).get(m['name'], {})
-                    if dist:
+                if dist:
+                    d_col1, d_col2 = st.columns([2, 1])
+                    with d_col1:
                         scale_labels = [str(i) for i in range(1, 6)]
                         counts = [dist.get(i, dist.get(str(i), 0)) for i in range(1, 6)]
 
@@ -465,16 +454,29 @@ if page == "Current Wave" and selected_wave_id:
                         ))
                         fig_d.update_layout(
                             **PLOTLY_LAYOUT,
+                            title=dict(text=f"{m['name']} — Response Distribution",
+                                      font=dict(size=12, color='#3B230E')),
                             xaxis=dict(title="Scale (1–5)", showgrid=False,
                                       tickfont=dict(size=12, color='#2E4D4D')),
                             yaxis=dict(showgrid=True, gridcolor='#E8DBC8', title="Count"),
-                            height=200,
-                            margin=dict(l=40, r=20, t=10, b=40),
+                            height=220,
+                            margin=dict(l=40, r=20, t=35, b=40),
                             bargap=0.4,
                         )
                         st.plotly_chart(fig_d, use_container_width=True, key=f"distchart_{m['name']}")
 
-                    # Qualitative Themes split by rating
+                    with d_col2:
+                        st.markdown(f"**Mean:** {m['mean_1_5']} / 5")
+                        st.markdown(f"**Score:** {m['score_100']} / 100")
+                        st.markdown(f"**SD:** {m['sd']}")
+                        st.markdown(f"**N:** {m['n']}")
+
+                        prev_val = prev_metric_lookup.get(m['name'])
+                        if prev_val:
+                            diff = round(m['score_100'] - prev_val, 1)
+                            st.markdown(f"**vs Prev Wave:** {'+' if diff > 0 else ''}{diff}")
+
+                    # Qualitative Themes split by rating (Wave 2)
                     themes = scores.get('qualitative_themes', {}).get(m['name'], {})
                     if themes:
                         st.markdown("**Why participants gave this rating:**")
@@ -482,16 +484,16 @@ if page == "Current Wave" and selected_wave_id:
                             group = themes['high']
                             st.markdown(f"🟢 **{group['label']}** ({group['count']} responses)")
                             for t in group.get('themes', []):
-                                st.markdown(f"- **{t['label']}** — {t['pct']}% ({t['count']})")
-                                for q in t.get('quotes', []):
-                                    st.markdown(f"  > *\"{q}\"*")
+                                with st.expander(f"{t['label']} — {t['pct']}% ({t['count']})"):
+                                    for q in t.get('quotes', []):
+                                        st.markdown(f"> *\"{q}\"*")
                         if 'low' in themes:
                             group = themes['low']
                             st.markdown(f"🔴 **{group['label']}** ({group['count']} responses)")
                             for t in group.get('themes', []):
-                                st.markdown(f"- **{t['label']}** — {t['pct']}% ({t['count']})")
-                                for q in t.get('quotes', []):
-                                    st.markdown(f"  > *\"{q}\"*")
+                                with st.expander(f"{t['label']} — {t['pct']}% ({t['count']})"):
+                                    for q in t.get('quotes', []):
+                                        st.markdown(f"> *\"{q}\"*")
 
             st.markdown("")
 
@@ -648,51 +650,29 @@ if page == "Current Wave" and selected_wave_id:
     with tab_sat:
         st.caption("CONTEXTUAL KPI")
         st.markdown("## Overall Satisfaction")
-        st.markdown("*Satisfaction is tracked as a contextual indicator (CSAT) alongside the composite score, not included in the overall metric.*")
         st.markdown("")
 
         if scores.get('sat_score') is not None:
             prev_sat = prev_scores.get('sat_score') if prev_scores else None
-            delta_html = ''
-            if prev_sat:
-                diff = round(scores['sat_score'] - prev_sat, 1)
-                arrow = '&#9650;' if diff > 0 else '&#9660;' if diff < 0 else '&ndash;'
-                delta_html = f'<div style="font-size:0.82rem;color:rgba(254,249,237,0.7);margin-top:0.3rem">{arrow} {abs(diff)}</div>'
+            sc1, sc2, sc3 = st.columns([1, 1.5, 1])
+            with sc2:
+                st.metric("Satisfaction Score", f"{scores['sat_score']} / 100",
+                          delta=f"{round(scores['sat_score'] - prev_sat, 1)}" if prev_sat else None)
+                st.caption(f"Mean: {scores['sat_mean']} · N = {scores['sat_n']}")
 
-            sat_card = f'''
-            <div style="display:flex;justify-content:center;margin-bottom:1.5rem">
-                <div style="background:#3B230E;color:#FEF9ED;border-radius:12px;padding:1.5rem 2.5rem;
-                            text-align:center;box-shadow:0 2px 12px rgba(59,35,14,0.08);max-width:360px;width:100%">
-                    <div style="font-size:0.72rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;
-                                color:rgba(254,249,237,0.5);margin-bottom:0.4rem">Satisfaction Score (CSAT)</div>
-                    <div style="font-family:Georgia,serif;font-size:2.8rem;font-weight:400;color:#FEF9ED;line-height:1">{scores['sat_score']}</div>
-                    <div style="font-size:0.82rem;color:rgba(254,249,237,0.6);margin-top:0.3rem">mean {scores['sat_mean']} &middot; N = {scores['sat_n']}</div>
-                    {delta_html}
-                </div>
-            </div>'''
-            st.markdown(sat_card, unsafe_allow_html=True)
+        st.markdown("")
 
-        # Stage satisfaction cards with colored backgrounds
+        # Stage satisfaction cards
         stage_sat = scores.get('stage_sat', {})
-        stage_colors = {'Inspiration': '#2E4D4D', 'Research': '#5B7E5B', 'Ready to Purchase': '#C07D10', 'Post-Purchase': '#A89A88'}
-        stage_cards_html = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem">'
-        for stage in STAGE_ORDER:
+        scols = st.columns(min(len(STAGE_ORDER), 4))
+        for i, stage in enumerate(STAGE_ORDER):
             sat = stage_sat.get(stage, {})
             n = sat.get('n', stage_n.get(stage, 0))
-            score_val = sat.get('score', '—')
-            bg = stage_colors.get(stage, '#A89A88')
-            opacity = '0.5' if n < 30 else '1'
-            stage_cards_html += f'''
-            <div style="background:{bg};color:#FEF9ED;border-radius:12px;padding:1.25rem;
-                        text-align:center;box-shadow:0 2px 12px rgba(59,35,14,0.08);opacity:{opacity}">
-                <div style="font-size:0.68rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;
-                            color:rgba(254,249,237,0.6);margin-bottom:0.4rem">{stage}</div>
-                <div style="font-family:Georgia,serif;font-size:2rem;font-weight:400;color:#FEF9ED;line-height:1">{score_val}</div>
-                <div style="font-size:0.75rem;color:rgba(254,249,237,0.6);margin-top:0.3rem">n = {n}</div>
-            </div>'''
-        stage_cards_html += '</div>'
-        st.markdown(stage_cards_html, unsafe_allow_html=True)
+            with scols[i % 4]:
+                st.metric(stage, sat.get('score', '—'), help=f"n = {n}")
+                st.caption(f"n = {n}")
 
+        st.markdown("")
         st.markdown("### Satisfaction Distribution")
 
         sat_dist = scores.get('sat_dist', {})
