@@ -825,12 +825,13 @@ if page == "Current Wave" and selected_wave_id:
                 textfont=dict(size=14, color='#3B230E', family="Georgia, serif"),
                 hovertemplate='%{x}: %{y} responses<extra></extra>',
             ))
+            max_count = max(counts) if counts else 1
             fig_sat.update_layout(
                 **PLOTLY_LAYOUT,
                 xaxis=dict(showgrid=False, tickfont=dict(size=11, color='#7A6A56')),
-                yaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
-                height=350,
-                margin=dict(l=20, r=20, t=50, b=60),
+                yaxis=dict(showgrid=False, showticklabels=False, zeroline=False, range=[0, max_count * 1.2]),
+                height=300,
+                margin=dict(l=20, r=20, t=10, b=60),
                 bargap=0.4,
             )
             st.plotly_chart(fig_sat, use_container_width=True, key="sat_dist_chart")
