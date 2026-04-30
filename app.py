@@ -745,7 +745,7 @@ if page == "Current Wave" and selected_wave_id:
                 op = '0.55' if sn < 30 else '1'
                 stage_cards += f'''
                 <div style="background:#EFE2D1;border-radius:12px;padding:1.25rem;text-align:center;box-shadow:0 2px 12px rgba(59,35,14,0.08);opacity:{op}">
-                    <div style="font-size:0.68rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#7A6A56;margin-bottom:0.4rem;display:flex;align-items:center;justify-content:center;gap:0.3rem;white-space:nowrap">{stage} <span class="sat-info" title="How well did Copilot help you accomplish this goal that you previously selected?">i</span></div>
+                    <div style="font-size:0.68rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#7A6A56;margin-bottom:0.4rem;display:flex;align-items:center;justify-content:center;gap:0.3rem;white-space:nowrap">{stage} <span class="info-icon dark" data-tip="How well did Copilot help you accomplish this goal that you previously selected?">i</span></div>
                     <div style="font-family:Georgia,serif;font-size:2rem;font-weight:400;color:#3B230E;line-height:1">{sv}</div>
                     <div style="font-size:0.75rem;color:#7A6A56;margin-top:0.3rem">n = {sn}</div>
                 </div>'''
@@ -754,32 +754,31 @@ if page == "Current Wave" and selected_wave_id:
             sat_components.html(f'''
             <html><head><style>
             * {{ margin:0; padding:0; box-sizing:border-box; }}
-            body {{ font-family: 'Segoe UI', system-ui, sans-serif; background: transparent; }}
-            .sat-info {{
-                cursor: help; font-size: 0.6rem; color: rgba(254,249,237,0.6);
-                border: 1.5px solid rgba(254,249,237,0.4); border-radius: 50%;
-                width: 14px; height: 14px; display: inline-flex; align-items: center;
-                justify-content: center; font-weight: 700; font-style: normal; text-transform: lowercase;
-                position: relative;
+            body {{ font-family: 'Segoe UI', system-ui, sans-serif; background: transparent; overflow: visible; }}
+            .info-icon {{
+                cursor: help; font-size: 0.6rem;
+                border-radius: 50%; width: 14px; height: 14px;
+                display: inline-flex; align-items: center; justify-content: center;
+                font-weight: 700; font-style: normal; text-transform: lowercase;
             }}
-            .sat-info-dark {{
-                cursor: help; font-size: 0.6rem; color: #7A6A56;
-                border: 1.5px solid #7A6A56; border-radius: 50%;
-                width: 14px; height: 14px; display: inline-flex; align-items: center;
-                justify-content: center; font-weight: 700; font-style: normal; text-transform: lowercase;
-                position: relative;
+            .info-icon.light {{
+                color: rgba(254,249,237,0.7); border: 1.5px solid rgba(254,249,237,0.5);
+            }}
+            .info-icon.dark {{
+                color: #3B230E; border: 1.5px solid #3B230E;
             }}
             #satTip {{
-                position: fixed; z-index: 9999; pointer-events: none; max-width: 300px;
+                position: absolute; z-index: 9999; pointer-events: none; max-width: 320px;
                 padding: 0.75rem 1rem; background: #3B230E; color: #FEF9ED; border-radius: 8px;
                 font-size: 0.82rem; line-height: 1.55; font-style: italic;
                 box-shadow: 0 6px 24px rgba(0,0,0,0.35); opacity: 0; transition: opacity 0.15s;
+                display: none;
             }}
             </style></head><body>
 
             <div style="display:flex;justify-content:center;margin-bottom:1.5rem">
                 <div style="background:#2E4D4D;color:#FEF9ED;border-radius:12px;padding:1.5rem 2.5rem;text-align:center;box-shadow:0 2px 12px rgba(59,35,14,0.08);width:100%">
-                    <div style="font-size:0.72rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:rgba(254,249,237,0.5);margin-bottom:0.4rem;display:flex;align-items:center;justify-content:center;gap:0.3rem">SATISFACTION SCORE <span class="sat-info" title="Thinking about your interaction with Copilot during the shopping activity, how satisfied were you with your overall experience using Copilot for shopping?">i</span></div>
+                    <div style="font-size:0.72rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:rgba(254,249,237,0.5);margin-bottom:0.4rem;display:flex;align-items:center;justify-content:center;gap:0.3rem">SATISFACTION SCORE <span class="info-icon light" data-tip="Thinking about your interaction with Copilot during the shopping activity, how satisfied were you with your overall experience using Copilot for shopping?">i</span></div>
                     <div style="font-family:Georgia,serif;font-size:2.8rem;font-weight:400;color:#FEF9ED;line-height:1">{scores['sat_score']}</div>
                     <div style="font-size:0.82rem;color:rgba(254,249,237,0.6);margin-top:0.3rem">mean {scores['sat_mean']} &middot; N = {scores['sat_n']}</div>
                     {delta_row}
@@ -793,22 +792,23 @@ if page == "Current Wave" and selected_wave_id:
             <div id="satTip"></div>
             <script>
             var tip = document.getElementById('satTip');
-            document.addEventListener('mouseover', function(e) {{
-                var el = e.target.closest('.sat-info, .sat-info-dark');
-                if (el) {{
-                    tip.textContent = el.getAttribute('title');
+            document.querySelectorAll('.info-icon').forEach(function(el) {{
+                el.addEventListener('mouseenter', function(e) {{
+                    tip.textContent = el.getAttribute('data-tip');
+                    tip.style.display = 'block';
                     var rect = el.getBoundingClientRect();
-                    tip.style.left = Math.max(10, rect.left - 100) + 'px';
-                    tip.style.top = (rect.top - tip.offsetHeight - 10) + 'px';
+                    tip.style.left = Math.max(10, rect.left + window.scrollX - 100) + 'px';
+                    tip.style.top = (rect.top + window.scrollY - tip.offsetHeight - 10) + 'px';
                     tip.style.opacity = '1';
-                }}
-            }});
-            document.addEventListener('mouseout', function(e) {{
-                if (e.target.closest('.sat-info, .sat-info-dark')) tip.style.opacity = '0';
+                }});
+                el.addEventListener('mouseleave', function() {{
+                    tip.style.opacity = '0';
+                    setTimeout(function() {{ tip.style.display = 'none'; }}, 150);
+                }});
             }});
             </script>
             </body></html>
-            ''', height=280, scrolling=False)
+            ''', height=350, scrolling=False)
 
         st.markdown("### Satisfaction Distribution")
 
