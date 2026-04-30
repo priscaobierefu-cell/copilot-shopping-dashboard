@@ -728,21 +728,22 @@ if page == "Current Wave" and selected_wave_id:
 
         if scores.get('sat_score') is not None:
             prev_sat = prev_scores.get('sat_score') if prev_scores else None
-            delta_html = ''
+
+            sat_card_delta = ''
             if prev_sat:
-                diff = round(scores['sat_score'] - prev_sat, 1)
-                arrow = '&#9650;' if diff > 0 else '&#9660;' if diff < 0 else '&ndash;'
-                delta_html = f'<div style="font-size:0.82rem;color:rgba(254,249,237,0.7);margin-top:0.3rem">{arrow} {abs(diff)}</div>'
+                diff_sat = round(scores['sat_score'] - prev_sat, 1)
+                arrow_sat = '&#9650;' if diff_sat > 0 else '&#9660;' if diff_sat < 0 else '&ndash;'
+                sat_card_delta = f'<div style="font-size:0.82rem;color:rgba(254,249,237,0.7);margin-top:0.3rem">{arrow_sat} {abs(diff_sat)}</div>'
 
             sat_card = f'''
             <div style="display:flex;justify-content:center;margin-bottom:1.5rem">
                 <div style="background:#2E4D4D;color:#FEF9ED;border-radius:12px;padding:1.5rem 2.5rem;
                             text-align:center;box-shadow:0 2px 12px rgba(59,35,14,0.08);width:100%">
                     <div style="font-size:0.72rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;
-                                color:rgba(254,249,237,0.5);margin-bottom:0.4rem;display:flex;align-items:center;justify-content:center;gap:0.3rem">Satisfaction Score <span title="Thinking about your interaction with Copilot during the shopping activity, how satisfied were you with your overall experience using Copilot for shopping?" style="cursor:help;font-size:0.6rem;color:rgba(254,249,237,0.6);border:1.5px solid rgba(254,249,237,0.4);border-radius:50%;width:14px;height:14px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;text-transform:lowercase">i</span></div>
+                                color:rgba(254,249,237,0.5);margin-bottom:0.4rem">SATISFACTION SCORE</div>
                     <div style="font-family:Georgia,serif;font-size:2.8rem;font-weight:400;color:#FEF9ED;line-height:1">{scores['sat_score']}</div>
                     <div style="font-size:0.82rem;color:rgba(254,249,237,0.6);margin-top:0.3rem">mean {scores['sat_mean']} &middot; N = {scores['sat_n']}</div>
-                    {delta_html}
+                    {sat_card_delta}
                 </div>
             </div>'''
             st.markdown(sat_card, unsafe_allow_html=True)
@@ -759,7 +760,7 @@ if page == "Current Wave" and selected_wave_id:
             <div style="background:#EFE2D1;border-radius:12px;padding:1.25rem;
                         text-align:center;box-shadow:0 2px 12px rgba(59,35,14,0.08);opacity:{opacity}">
                 <div style="font-size:0.68rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;
-                            color:#7A6A56;margin-bottom:0.4rem;display:flex;align-items:center;justify-content:center;gap:0.3rem;white-space:nowrap">{stage} <span title="How well did Copilot help you accomplish this goal that you previously selected?" style="cursor:help;font-size:0.72rem;color:#7A6A56;border:1.5px solid #7A6A56;border-radius:50%;width:14px;height:14px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-style:normal;text-transform:lowercase">i</span></div>
+                            color:#7A6A56;margin-bottom:0.4rem;display:flex;align-items:center;justify-content:center;gap:0.3rem;white-space:nowrap">{stage} <span style="font-size:0.72rem;color:#7A6A56;border:1.5px solid #7A6A56;border-radius:50%;width:14px;height:14px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-style:normal;text-transform:lowercase">i</span></div>
                 <div style="font-family:Georgia,serif;font-size:2rem;font-weight:400;color:#3B230E;line-height:1">{score_val}</div>
                 <div style="font-size:0.75rem;color:#7A6A56;margin-top:0.3rem">n = {n}</div>
             </div>'''
@@ -784,9 +785,9 @@ if page == "Current Wave" and selected_wave_id:
             fig_sat.update_layout(
                 **PLOTLY_LAYOUT,
                 xaxis=dict(showgrid=False, tickfont=dict(size=11, color='#7A6A56')),
-                yaxis=dict(showgrid=True, gridcolor='#E8DBC8', showticklabels=False),
-                height=250,
-                margin=dict(l=20, r=20, t=10, b=60),
+                yaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
+                height=300,
+                margin=dict(l=20, r=20, t=40, b=60),
                 bargap=0.4,
             )
             st.plotly_chart(fig_sat, use_container_width=True, key="sat_dist_chart")
