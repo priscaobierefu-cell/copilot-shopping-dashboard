@@ -733,7 +733,7 @@ section {{ padding: 4rem 0; }}
         <div class="contacts-col">
           <h4>Contacts</h4>
           <p><strong>UXR:</strong> Prisca Obierefu<br>
-          <a href="mailto:pobierefu@microsoft.com">pobierefu@microsoft.com</a></p>
+          <a href="mailto:v-pobierefu@microsoft.com">v-pobierefu@microsoft.com</a></p>
           <p style="margin-top:0.5rem"><strong>Contributors:</strong> {contributor_list}</p>
         </div>
         <div class="contacts-col">
