@@ -736,10 +736,10 @@ if page == "Current Wave" and selected_wave_id:
 
             sat_card = f'''
             <div style="display:flex;justify-content:center;margin-bottom:1.5rem">
-                <div style="background:#3B230E;color:#FEF9ED;border-radius:12px;padding:1.5rem 2.5rem;
-                            text-align:center;box-shadow:0 2px 12px rgba(59,35,14,0.08);max-width:360px;width:100%">
+                <div style="background:#2E4D4D;color:#FEF9ED;border-radius:12px;padding:1.5rem 2.5rem;
+                            text-align:center;box-shadow:0 2px 12px rgba(59,35,14,0.08);width:100%">
                     <div style="font-size:0.72rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;
-                                color:rgba(254,249,237,0.5);margin-bottom:0.4rem">Satisfaction Score (CSAT)</div>
+                                color:rgba(254,249,237,0.5);margin-bottom:0.4rem;display:flex;align-items:center;justify-content:center;gap:0.3rem">Satisfaction Score <span title="Thinking about your interaction with Copilot during the shopping activity, how satisfied were you with your overall experience using Copilot for shopping?" style="cursor:help;font-size:0.6rem;color:rgba(254,249,237,0.6);border:1.5px solid rgba(254,249,237,0.4);border-radius:50%;width:14px;height:14px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;text-transform:lowercase">i</span></div>
                     <div style="font-family:Georgia,serif;font-size:2.8rem;font-weight:400;color:#FEF9ED;line-height:1">{scores['sat_score']}</div>
                     <div style="font-size:0.82rem;color:rgba(254,249,237,0.6);margin-top:0.3rem">mean {scores['sat_mean']} &middot; N = {scores['sat_n']}</div>
                     {delta_html}
@@ -747,23 +747,21 @@ if page == "Current Wave" and selected_wave_id:
             </div>'''
             st.markdown(sat_card, unsafe_allow_html=True)
 
-        # Stage satisfaction cards with colored backgrounds
+        # Stage satisfaction cards matching report style (cream with info tooltip)
         stage_sat = scores.get('stage_sat', {})
-        stage_colors = {'Inspiration': '#2E4D4D', 'Research': '#5B7E5B', 'Ready to Purchase': '#C07D10', 'Post-Purchase': '#A89A88'}
         stage_cards_html = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem">'
         for stage in STAGE_ORDER:
             sat = stage_sat.get(stage, {})
             n = sat.get('n', stage_n.get(stage, 0))
             score_val = sat.get('score', '—')
-            bg = stage_colors.get(stage, '#A89A88')
-            opacity = '0.5' if n < 30 else '1'
+            opacity = '0.55' if n < 30 else '1'
             stage_cards_html += f'''
-            <div style="background:{bg};color:#FEF9ED;border-radius:12px;padding:1.25rem;
+            <div style="background:#EFE2D1;border-radius:12px;padding:1.25rem;
                         text-align:center;box-shadow:0 2px 12px rgba(59,35,14,0.08);opacity:{opacity}">
                 <div style="font-size:0.68rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;
-                            color:rgba(254,249,237,0.6);margin-bottom:0.4rem">{stage}</div>
-                <div style="font-family:Georgia,serif;font-size:2rem;font-weight:400;color:#FEF9ED;line-height:1">{score_val}</div>
-                <div style="font-size:0.75rem;color:rgba(254,249,237,0.6);margin-top:0.3rem">n = {n}</div>
+                            color:#7A6A56;margin-bottom:0.4rem;display:flex;align-items:center;justify-content:center;gap:0.3rem;white-space:nowrap">{stage} <span title="How well did Copilot help you accomplish this goal that you previously selected?" style="cursor:help;font-size:0.72rem;color:#7A6A56;border:1.5px solid #7A6A56;border-radius:50%;width:14px;height:14px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-style:normal;text-transform:lowercase">i</span></div>
+                <div style="font-family:Georgia,serif;font-size:2rem;font-weight:400;color:#3B230E;line-height:1">{score_val}</div>
+                <div style="font-size:0.75rem;color:#7A6A56;margin-top:0.3rem">n = {n}</div>
             </div>'''
         stage_cards_html += '</div>'
         st.markdown(stage_cards_html, unsafe_allow_html=True)
