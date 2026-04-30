@@ -384,118 +384,174 @@ if page == "Current Wave" and selected_wave_id:
         st.markdown(f"## All {len(scores.get('metrics', []))} Metrics")
         st.markdown("")
 
-        prev_metric_lookup = {}
-        if prev_scores:
-            for m in prev_scores.get('metrics', []):
-                prev_metric_lookup[m['name']] = m['score_100']
+        # Build the metrics section as HTML matching the report style
+        survey_questions = {
+            'Accuracy': 'How accurate was the shopping information provided by Copilot?',
+            'Relevance': 'How relevant was Copilot\u2019s responses to what you wanted or needed?',
+            'Personalization': 'How personalized was Copilot\u2019s response to your needs and preferences?',
+            'Trustworthiness': 'Overall, how trustworthy and reliable are the sources of information in the Copilot responses?',
+            'Data Protection': 'How protected do you think your data is while viewing the shopping information provided by Copilot?',
+            'Comfort Sharing Info': 'How comfortable are you (or would you feel) sharing personal information with Copilot during shopping?',
+            'Privacy-Respecting': 'How well did Copilot respect your privacy in its shopping response?',
+            'Clarity': 'How clear was what you should do next when looking at the responses provided by Copilot?',
+            'Intuitiveness': 'How easy was it to understand and use the shopping information Copilot gave you?',
+            'Ease of Finding Info': 'How easy was it to find the product/service information you were interested in from Copilot\u2019s response?',
+            'Helpfulness': 'How helpful was the Copilot\u2019s shopping information in giving you clear steps that saved you time and effort?',
+            'Visual Appeal': 'Overall, how visually appealing was the Copilot\u2019s shopping information?',
+            'Proactiveness': 'How well did the Copilot responses anticipate your next steps, offering ideas or guidance before you had to ask, reducing the need for follow-ups?',
+        }
 
         domain_colors_map = {
             'Quality': '#2E4D4D',
             'Trust & Confidence': '#5B7E5B',
             'Privacy & Security': '#C07D10',
         }
+        domain_css = {'Quality': 'quality', 'Trust & Confidence': 'trust', 'Privacy & Security': 'privacy'}
 
+        # Build all bar rows HTML
+        bars_html = ''
         for domain in DOMAIN_ORDER:
             domain_metrics = [m for m in scores['metrics'] if m['domain'] == domain]
             domain_metrics.sort(key=lambda x: -x['score_100'])
-
-            # Build horizontal bar chart for this domain
-            names = [m['name'] for m in reversed(domain_metrics)]
-            vals = [m['score_100'] for m in reversed(domain_metrics)]
             color = domain_colors_map[domain]
+            css_class = domain_css[domain]
 
-            fig = go.Figure()
-            fig.add_trace(go.Bar(
-                y=names, x=vals,
-                orientation='h',
-                marker=dict(color=color, opacity=0.8, cornerradius=4),
-                text=[f"  {v}" for v in vals],
-                textposition='outside',
-                textfont=dict(size=13, color='#3B230E', family="Georgia, serif"),
-                hovertemplate='%{y}: %{x}/100<extra></extra>',
-            ))
-            fig.update_layout(
-                **PLOTLY_LAYOUT,
-                title=dict(text=domain.upper(), font=dict(size=11, color='#7A6A56',
-                           family="Segoe UI"), x=0, y=0.98),
-                xaxis=dict(range=[0, 105], showticklabels=False, showgrid=False, zeroline=False),
-                yaxis=dict(showgrid=False, tickfont=dict(size=13)),
-                height=max(140, len(domain_metrics) * 45 + 50),
-                margin=dict(l=160, r=50, t=30, b=10),
-                bargap=0.35,
-            )
-            st.plotly_chart(fig, use_container_width=True, key=f"bar_{domain}")
+            bars_html += f'<div class="bar-section"><div class="bar-section-title">{domain}</div>'
 
-            # Distribution — clickable metric selector with clear label
-            metric_names = [m['name'] for m in domain_metrics]
-            selected_metric = st.selectbox(
-                f"Select a metric to see its distribution:",
-                ["Select a metric..."] + metric_names,
-                key=f"dist_{domain}",
-            )
+            for m in domain_metrics:
+                sq = survey_questions.get(m['name'], '')
+                q_tip = f'<span class="mq-tip" data-q="{sq}">&#9432;</span>' if sq else ''
 
-            if selected_metric != "Select a metric...":
-                m = next(mt for mt in domain_metrics if mt['name'] == selected_metric)
+                # Build drawer content
+                drawer_content = ''
+
+                # Distribution
                 dist = scores.get('distributions', {}).get(m['name'], {})
-
                 if dist:
-                    d_col1, d_col2 = st.columns([2, 1])
-                    with d_col1:
-                        scale_labels = [str(i) for i in range(1, 6)]
-                        counts = [dist.get(i, dist.get(str(i), 0)) for i in range(1, 6)]
+                    max_count = max(dist.values()) if dist else 1
+                    drawer_content += '<div class="bar-drawer-inner">'
+                    for i in range(1, 6):
+                        count = dist.get(i, dist.get(str(i), 0))
+                        bar_h = max(3, int((count / max_count) * 55)) if max_count > 0 else 3
+                        drawer_content += f'''
+                        <div class="dist-bar-wrap">
+                            <div class="dist-count">{count}</div>
+                            <div class="dist-bar" style="height:{bar_h}px;background:{color}"></div>
+                            <div class="dist-label">{i}</div>
+                        </div>'''
+                    drawer_content += '</div>'
 
-                        fig_d = go.Figure()
-                        fig_d.add_trace(go.Bar(
-                            x=scale_labels, y=counts,
-                            marker=dict(color=color, opacity=0.55, cornerradius=4),
-                            text=counts, textposition='outside',
-                            textfont=dict(size=12, color='#3B230E'),
-                            hovertemplate='Scale %{x}: %{y} responses<extra></extra>',
-                        ))
-                        fig_d.update_layout(
-                            **PLOTLY_LAYOUT,
-                            title=dict(text=f"{m['name']} — Response Distribution",
-                                      font=dict(size=12, color='#3B230E')),
-                            xaxis=dict(title="Scale (1–5)", showgrid=False,
-                                      tickfont=dict(size=12, color='#2E4D4D')),
-                            yaxis=dict(showgrid=True, gridcolor='#E8DBC8', title="Count"),
-                            height=220,
-                            margin=dict(l=40, r=20, t=35, b=40),
-                            bargap=0.4,
-                        )
-                        st.plotly_chart(fig_d, use_container_width=True, key=f"distchart_{m['name']}")
+                # Qualitative themes
+                themes = scores.get('qualitative_themes', {}).get(m['name'], {})
+                if themes:
+                    drawer_content += '<div class="drawer-themes"><div class="drawer-themes-title">Why participants gave this rating</div>'
+                    for key, accent, icon in [('high', '#3A7D44', '&#9650;'), ('low', '#B84233', '&#9660;')]:
+                        g = themes.get(key)
+                        if g:
+                            drawer_content += f'<div style="margin-bottom:0.5rem"><div style="font-size:0.72rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:{accent};margin-bottom:0.5rem">{icon} {g["label"]} ({g["count"]} responses)</div>'
+                            for t in g.get('themes', []):
+                                drawer_content += f'<div class="theme-item"><div class="theme-label-row"><div class="theme-dot" style="background:{accent}"></div><span class="theme-name">{t["label"]}</span><span class="theme-pct">{t["pct"]}%</span><span class="theme-count">({t["count"]})</span></div>'
+                                for q in t.get('quotes', []):
+                                    import html as html_mod
+                                    drawer_content += f'<div class="theme-quote">\u201C{html_mod.escape(q)}\u201D</div>'
+                                drawer_content += '</div>'
+                            drawer_content += '</div>'
+                    drawer_content += '</div>'
 
-                    with d_col2:
-                        st.markdown(f"**Mean:** {m['mean_1_5']} / 5")
-                        st.markdown(f"**Score:** {m['score_100']} / 100")
-                        st.markdown(f"**SD:** {m['sd']}")
-                        st.markdown(f"**N:** {m['n']}")
+                bars_html += f'''
+                <div class="bar-row" onclick="toggleDrawer(this)">
+                    <div class="bar-label">{m['name']} {q_tip}</div>
+                    <div class="bar-track"><div class="bar-fill {css_class}" style="width:{m['score_100']}%"></div></div>
+                    <div class="bar-value">{m['score_100']}</div>
+                    <div class="bar-chevron">&#9654;</div>
+                </div>
+                <div class="bar-drawer">{drawer_content}</div>'''
 
-                        prev_val = prev_metric_lookup.get(m['name'])
-                        if prev_val:
-                            diff = round(m['score_100'] - prev_val, 1)
-                            st.markdown(f"**vs Prev Wave:** {'+' if diff > 0 else ''}{diff}")
+            bars_html += '</div>'
 
-                    # Qualitative Themes split by rating (Wave 2)
-                    themes = scores.get('qualitative_themes', {}).get(m['name'], {})
-                    if themes:
-                        st.markdown("**Why participants gave this rating:**")
-                        if 'high' in themes:
-                            group = themes['high']
-                            st.markdown(f"🟢 **{group['label']}** ({group['count']} responses)")
-                            for t in group.get('themes', []):
-                                with st.expander(f"{t['label']} — {t['pct']}% ({t['count']})"):
-                                    for q in t.get('quotes', []):
-                                        st.markdown(f"> *\"{q}\"*")
-                        if 'low' in themes:
-                            group = themes['low']
-                            st.markdown(f"🔴 **{group['label']}** ({group['count']} responses)")
-                            for t in group.get('themes', []):
-                                with st.expander(f"{t['label']} — {t['pct']}% ({t['count']})"):
-                                    for q in t.get('quotes', []):
-                                        st.markdown(f"> *\"{q}\"*")
+        metrics_html = f'''
+        <style>
+        .bar-section {{ margin-bottom: 1.5rem; }}
+        .bar-section-title {{ font-size: 0.72rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #7A6A56; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid #D4C4AE; }}
+        .bar-row {{ display: grid; grid-template-columns: 180px 1fr 55px 20px; align-items: center; gap: 1rem; padding: 0.55rem 0.5rem; cursor: pointer; border-radius: 6px; transition: background 0.2s; }}
+        .bar-row:hover {{ background: rgba(46,77,77,0.12); }}
+        .bar-row.expanded {{ background: rgba(46,77,77,0.12); }}
+        .bar-label {{ font-size: 0.88rem; font-weight: 500; display: flex; align-items: center; gap: 0.3rem; }}
+        .bar-chevron {{ font-size: 0.7rem; color: #7A6A56; transition: transform 0.3s; display: flex; align-items: center; justify-content: center; }}
+        .bar-row.expanded .bar-chevron {{ transform: rotate(90deg); color: #2E4D4D; }}
+        .bar-track {{ height: 28px; background: #E8DBC8; border-radius: 6px; overflow: hidden; }}
+        .bar-fill {{ height: 100%; border-radius: 6px; }}
+        .bar-fill.quality {{ background: #2E4D4D; }}
+        .bar-fill.trust {{ background: #5B7E5B; }}
+        .bar-fill.privacy {{ background: #C07D10; }}
+        .bar-value {{ font-size: 0.88rem; font-weight: 600; text-align: right; }}
+        .bar-drawer {{ max-height: 0; overflow: hidden; transition: max-height 0.5s ease; margin: 0 0.5rem; }}
+        .bar-drawer.open {{ max-height: 2000px; }}
+        .bar-drawer-inner {{ padding: 0.75rem 0; display: flex; gap: 1.5rem; align-items: flex-end; height: 80px; margin-left: 180px; margin-right: 75px; padding-left: 1rem; }}
+        .dist-bar-wrap {{ display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }}
+        .dist-count {{ font-size: 0.78rem; color: #7A6A56; font-weight: 500; margin-bottom: 0.2rem; }}
+        .dist-bar {{ width: 36px; border-radius: 4px 4px 0 0; opacity: 0.55; min-height: 3px; }}
+        .dist-label {{ font-size: 0.72rem; color: #2E4D4D; margin-top: 0.25rem; font-weight: 600; }}
+        .drawer-themes {{ margin: 0.5rem 0 0.25rem; padding: 0.75rem 1rem; background: #F5EBDB; border-radius: 8px; border-left: 3px solid #C07D10; }}
+        .drawer-themes-title {{ font-size: 0.68rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #7A6A56; margin-bottom: 0.6rem; }}
+        .theme-item {{ margin-bottom: 0.6rem; padding-bottom: 0.5rem; border-bottom: 1px solid #D4C4AE; }}
+        .theme-item:last-child {{ border-bottom: none; margin-bottom: 0; padding-bottom: 0; }}
+        .theme-label-row {{ display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem; }}
+        .theme-dot {{ width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }}
+        .theme-name {{ font-weight: 600; font-size: 0.85rem; color: #3B230E; }}
+        .theme-pct {{ font-weight: 700; font-size: 0.78rem; color: #2E4D4D; margin-left: auto; }}
+        .theme-count {{ font-size: 0.72rem; color: #7A6A56; }}
+        .theme-quote {{ font-size: 0.8rem; color: #7A6A56; font-style: italic; padding: 0.2rem 0 0.15rem 1.2rem; line-height: 1.5; border-left: 2px solid #D4C4AE; margin-top: 0.15rem; }}
+        .mq-tip {{ position: relative; display: inline-flex; cursor: help; font-size: 0.78rem; color: #7A6A56; flex-shrink: 0; margin-left: 2px; }}
+        .mq-tip:hover {{ color: #2E4D4D; }}
+        #metricTip {{ position: fixed; z-index: 9999; pointer-events: none; max-width: 300px; padding: 0.75rem 1rem; background: #3B230E; color: #FEF9ED; border-radius: 8px; font-size: 0.82rem; line-height: 1.55; font-weight: 400; font-style: italic; box-shadow: 0 6px 24px rgba(0,0,0,0.35); opacity: 0; transition: opacity 0.15s; font-family: Segoe UI, system-ui, sans-serif; }}
+        .legend-row {{ display: flex; gap: 1.2rem; flex-wrap: wrap; margin-bottom: 1.5rem; }}
+        .legend-chip {{ display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; color: #7A6A56; }}
+        .legend-dot {{ width: 10px; height: 10px; border-radius: 3px; }}
+        </style>
 
-            st.markdown("")
+        <p style="font-size:0.95rem;color:#7A6A56;margin-bottom:0.5rem">Scored on a 0&ndash;100 scale. <span style="display:inline-block;background:#2E4D4D;color:#FEF9ED;font-size:0.72rem;font-weight:600;padding:0.2rem 0.7rem;border-radius:12px;letter-spacing:0.04em;vertical-align:middle;margin-left:0.25rem;cursor:default">&#9654; Click any bar to expand details &amp; qualitative themes</span></p>
+        <div class="legend-row">
+            <div class="legend-chip"><div class="legend-dot" style="background:#2E4D4D"></div>Quality</div>
+            <div class="legend-chip"><div class="legend-dot" style="background:#5B7E5B"></div>Trust &amp; Confidence</div>
+            <div class="legend-chip"><div class="legend-dot" style="background:#C07D10"></div>Privacy &amp; Security</div>
+        </div>
+
+        {bars_html}
+
+        <div id="metricTip"></div>
+
+        <script>
+        function toggleDrawer(row) {{
+            const drawer = row.nextElementSibling;
+            const isOpen = drawer.classList.contains('open');
+            document.querySelectorAll('.bar-drawer.open').forEach(d => d.classList.remove('open'));
+            document.querySelectorAll('.bar-row.expanded').forEach(r => r.classList.remove('expanded'));
+            if (!isOpen) {{ drawer.classList.add('open'); row.classList.add('expanded'); }}
+        }}
+        const tip = document.getElementById('metricTip');
+        document.addEventListener('mouseover', function(e) {{
+            const qt = e.target.closest('.mq-tip');
+            if (qt) {{
+                tip.textContent = qt.getAttribute('data-q');
+                const rect = qt.getBoundingClientRect();
+                tip.style.left = Math.max(10, rect.left - 100) + 'px';
+                tip.style.top = (rect.top - tip.offsetHeight - 10) + 'px';
+                tip.style.opacity = '1';
+            }}
+        }});
+        document.addEventListener('mouseout', function(e) {{
+            if (e.target.closest('.mq-tip')) tip.style.opacity = '0';
+        }});
+        // Auto-expand first bar
+        setTimeout(function() {{
+            const firstRow = document.querySelector('.bar-row');
+            const firstDrawer = document.querySelector('.bar-drawer');
+            if (firstRow && firstDrawer) {{ firstRow.classList.add('expanded'); firstDrawer.classList.add('open'); }}
+        }}, 500);
+        </script>
+        '''
+        st.markdown(metrics_html, unsafe_allow_html=True)
 
     # ── TAB: JOURNEY STAGES ────────────────────────────────────────────
     with tab_stages:
@@ -650,29 +706,51 @@ if page == "Current Wave" and selected_wave_id:
     with tab_sat:
         st.caption("CONTEXTUAL KPI")
         st.markdown("## Overall Satisfaction")
+        st.markdown("*Satisfaction is tracked as a contextual indicator (CSAT) alongside the composite score, not included in the overall metric.*")
         st.markdown("")
 
         if scores.get('sat_score') is not None:
             prev_sat = prev_scores.get('sat_score') if prev_scores else None
-            sc1, sc2, sc3 = st.columns([1, 1.5, 1])
-            with sc2:
-                st.metric("Satisfaction Score", f"{scores['sat_score']} / 100",
-                          delta=f"{round(scores['sat_score'] - prev_sat, 1)}" if prev_sat else None)
-                st.caption(f"Mean: {scores['sat_mean']} · N = {scores['sat_n']}")
+            delta_html = ''
+            if prev_sat:
+                diff = round(scores['sat_score'] - prev_sat, 1)
+                arrow = '&#9650;' if diff > 0 else '&#9660;' if diff < 0 else '&ndash;'
+                delta_html = f'<div style="font-size:0.82rem;color:rgba(254,249,237,0.7);margin-top:0.3rem">{arrow} {abs(diff)}</div>'
 
-        st.markdown("")
+            sat_card = f'''
+            <div style="display:flex;justify-content:center;margin-bottom:1.5rem">
+                <div style="background:#3B230E;color:#FEF9ED;border-radius:12px;padding:1.5rem 2.5rem;
+                            text-align:center;box-shadow:0 2px 12px rgba(59,35,14,0.08);max-width:360px;width:100%">
+                    <div style="font-size:0.72rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;
+                                color:rgba(254,249,237,0.5);margin-bottom:0.4rem">Satisfaction Score (CSAT)</div>
+                    <div style="font-family:Georgia,serif;font-size:2.8rem;font-weight:400;color:#FEF9ED;line-height:1">{scores['sat_score']}</div>
+                    <div style="font-size:0.82rem;color:rgba(254,249,237,0.6);margin-top:0.3rem">mean {scores['sat_mean']} &middot; N = {scores['sat_n']}</div>
+                    {delta_html}
+                </div>
+            </div>'''
+            st.markdown(sat_card, unsafe_allow_html=True)
 
-        # Stage satisfaction cards
+        # Stage satisfaction cards with colored backgrounds
         stage_sat = scores.get('stage_sat', {})
-        scols = st.columns(min(len(STAGE_ORDER), 4))
-        for i, stage in enumerate(STAGE_ORDER):
+        stage_colors = {'Inspiration': '#2E4D4D', 'Research': '#5B7E5B', 'Ready to Purchase': '#C07D10', 'Post-Purchase': '#A89A88'}
+        stage_cards_html = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem">'
+        for stage in STAGE_ORDER:
             sat = stage_sat.get(stage, {})
             n = sat.get('n', stage_n.get(stage, 0))
-            with scols[i % 4]:
-                st.metric(stage, sat.get('score', '—'), help=f"n = {n}")
-                st.caption(f"n = {n}")
+            score_val = sat.get('score', '—')
+            bg = stage_colors.get(stage, '#A89A88')
+            opacity = '0.5' if n < 30 else '1'
+            stage_cards_html += f'''
+            <div style="background:{bg};color:#FEF9ED;border-radius:12px;padding:1.25rem;
+                        text-align:center;box-shadow:0 2px 12px rgba(59,35,14,0.08);opacity:{opacity}">
+                <div style="font-size:0.68rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;
+                            color:rgba(254,249,237,0.6);margin-bottom:0.4rem">{stage}</div>
+                <div style="font-family:Georgia,serif;font-size:2rem;font-weight:400;color:#FEF9ED;line-height:1">{score_val}</div>
+                <div style="font-size:0.75rem;color:rgba(254,249,237,0.6);margin-top:0.3rem">n = {n}</div>
+            </div>'''
+        stage_cards_html += '</div>'
+        st.markdown(stage_cards_html, unsafe_allow_html=True)
 
-        st.markdown("")
         st.markdown("### Satisfaction Distribution")
 
         sat_dist = scores.get('sat_dist', {})
