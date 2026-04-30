@@ -469,8 +469,18 @@ if page == "Current Wave" and selected_wave_id:
 
             bars_html += '</div>'
 
-        metrics_html = f'''
+        import streamlit.components.v1 as components
+
+        # Calculate total height needed
+        total_metrics = sum(1 for m in scores['metrics'])
+        est_height = 200 + total_metrics * 55  # base + per-metric row height
+
+        components.html(f'''
+        <html>
+        <head>
         <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{ font-family: 'Segoe UI', system-ui, sans-serif; color: #3B230E; background: transparent; padding: 0.5rem; }}
         .bar-section {{ margin-bottom: 1.5rem; }}
         .bar-section-title {{ font-size: 0.72rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #7A6A56; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid #D4C4AE; }}
         .bar-row {{ display: grid; grid-template-columns: 180px 1fr 55px 20px; align-items: center; gap: 1rem; padding: 0.55rem 0.5rem; cursor: pointer; border-radius: 6px; transition: background 0.2s; }}
@@ -504,37 +514,41 @@ if page == "Current Wave" and selected_wave_id:
         .theme-quote {{ font-size: 0.8rem; color: #7A6A56; font-style: italic; padding: 0.2rem 0 0.15rem 1.2rem; line-height: 1.5; border-left: 2px solid #D4C4AE; margin-top: 0.15rem; }}
         .mq-tip {{ position: relative; display: inline-flex; cursor: help; font-size: 0.78rem; color: #7A6A56; flex-shrink: 0; margin-left: 2px; }}
         .mq-tip:hover {{ color: #2E4D4D; }}
-        #metricTip {{ position: fixed; z-index: 9999; pointer-events: none; max-width: 300px; padding: 0.75rem 1rem; background: #3B230E; color: #FEF9ED; border-radius: 8px; font-size: 0.82rem; line-height: 1.55; font-weight: 400; font-style: italic; box-shadow: 0 6px 24px rgba(0,0,0,0.35); opacity: 0; transition: opacity 0.15s; font-family: Segoe UI, system-ui, sans-serif; }}
+        #metricTip {{ position: fixed; z-index: 9999; pointer-events: none; max-width: 300px; padding: 0.75rem 1rem; background: #3B230E; color: #FEF9ED; border-radius: 8px; font-size: 0.82rem; line-height: 1.55; font-weight: 400; font-style: italic; box-shadow: 0 6px 24px rgba(0,0,0,0.35); opacity: 0; transition: opacity 0.15s; }}
         .legend-row {{ display: flex; gap: 1.2rem; flex-wrap: wrap; margin-bottom: 1.5rem; }}
         .legend-chip {{ display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; color: #7A6A56; }}
         .legend-dot {{ width: 10px; height: 10px; border-radius: 3px; }}
+        .intro {{ font-size: 0.95rem; color: #7A6A56; margin-bottom: 0.5rem; }}
+        .badge {{ display: inline-block; background: #2E4D4D; color: #FEF9ED; font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.7rem; border-radius: 12px; letter-spacing: 0.04em; vertical-align: middle; margin-left: 0.25rem; }}
         </style>
-
-        <p style="font-size:0.95rem;color:#7A6A56;margin-bottom:0.5rem">Scored on a 0&ndash;100 scale. <span style="display:inline-block;background:#2E4D4D;color:#FEF9ED;font-size:0.72rem;font-weight:600;padding:0.2rem 0.7rem;border-radius:12px;letter-spacing:0.04em;vertical-align:middle;margin-left:0.25rem;cursor:default">&#9654; Click any bar to expand details &amp; qualitative themes</span></p>
+        </head>
+        <body>
+        <p class="intro">Scored on a 0&ndash;100 scale. <span class="badge">&#9654; Click any bar to expand details &amp; qualitative themes</span></p>
         <div class="legend-row">
             <div class="legend-chip"><div class="legend-dot" style="background:#2E4D4D"></div>Quality</div>
             <div class="legend-chip"><div class="legend-dot" style="background:#5B7E5B"></div>Trust &amp; Confidence</div>
             <div class="legend-chip"><div class="legend-dot" style="background:#C07D10"></div>Privacy &amp; Security</div>
         </div>
-
         {bars_html}
-
         <div id="metricTip"></div>
-
         <script>
         function toggleDrawer(row) {{
-            const drawer = row.nextElementSibling;
-            const isOpen = drawer.classList.contains('open');
-            document.querySelectorAll('.bar-drawer.open').forEach(d => d.classList.remove('open'));
-            document.querySelectorAll('.bar-row.expanded').forEach(r => r.classList.remove('expanded'));
+            var drawer = row.nextElementSibling;
+            var isOpen = drawer.classList.contains('open');
+            document.querySelectorAll('.bar-drawer.open').forEach(function(d) {{ d.classList.remove('open'); }});
+            document.querySelectorAll('.bar-row.expanded').forEach(function(r) {{ r.classList.remove('expanded'); }});
             if (!isOpen) {{ drawer.classList.add('open'); row.classList.add('expanded'); }}
+            // Resize iframe to fit content
+            setTimeout(function() {{
+                window.parent.postMessage({{type:'streamlit:setFrameHeight', height: document.body.scrollHeight + 20}}, '*');
+            }}, 600);
         }}
-        const tip = document.getElementById('metricTip');
+        var tip = document.getElementById('metricTip');
         document.addEventListener('mouseover', function(e) {{
-            const qt = e.target.closest('.mq-tip');
+            var qt = e.target.closest('.mq-tip');
             if (qt) {{
                 tip.textContent = qt.getAttribute('data-q');
-                const rect = qt.getBoundingClientRect();
+                var rect = qt.getBoundingClientRect();
                 tip.style.left = Math.max(10, rect.left - 100) + 'px';
                 tip.style.top = (rect.top - tip.offsetHeight - 10) + 'px';
                 tip.style.opacity = '1';
@@ -545,13 +559,16 @@ if page == "Current Wave" and selected_wave_id:
         }});
         // Auto-expand first bar
         setTimeout(function() {{
-            const firstRow = document.querySelector('.bar-row');
-            const firstDrawer = document.querySelector('.bar-drawer');
+            var firstRow = document.querySelector('.bar-row');
+            var firstDrawer = document.querySelector('.bar-drawer');
             if (firstRow && firstDrawer) {{ firstRow.classList.add('expanded'); firstDrawer.classList.add('open'); }}
-        }}, 500);
+            // Set initial height
+            window.parent.postMessage({{type:'streamlit:setFrameHeight', height: document.body.scrollHeight + 20}}, '*');
+        }}, 300);
         </script>
-        '''
-        st.markdown(metrics_html, unsafe_allow_html=True)
+        </body>
+        </html>
+        ''', height=est_height, scrolling=True)
 
     # ── TAB: JOURNEY STAGES ────────────────────────────────────────────
     with tab_stages:
