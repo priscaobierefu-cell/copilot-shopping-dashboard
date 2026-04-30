@@ -754,7 +754,7 @@ if page == "Current Wave" and selected_wave_id:
             sat_components.html(f'''
             <html><head><style>
             * {{ margin:0; padding:0; box-sizing:border-box; }}
-            body {{ font-family: 'Segoe UI', system-ui, sans-serif; background: transparent; overflow: visible; }}
+            body {{ font-family: 'Segoe UI', system-ui, sans-serif; background: transparent; overflow: visible; padding-top: 0.5rem; }}
             .info-icon {{
                 cursor: help; font-size: 0.6rem;
                 border-radius: 50%; width: 14px; height: 14px;
@@ -798,7 +798,7 @@ if page == "Current Wave" and selected_wave_id:
                     tip.style.display = 'block';
                     var rect = el.getBoundingClientRect();
                     tip.style.left = Math.max(10, rect.left + window.scrollX - 100) + 'px';
-                    tip.style.top = (rect.top + window.scrollY - tip.offsetHeight - 10) + 'px';
+                    tip.style.top = (rect.bottom + window.scrollY + 8) + 'px';
                     tip.style.opacity = '1';
                 }});
                 el.addEventListener('mouseleave', function() {{
@@ -808,7 +808,7 @@ if page == "Current Wave" and selected_wave_id:
             }});
             </script>
             </body></html>
-            ''', height=350, scrolling=False)
+            ''', height=420, scrolling=False)
 
         st.markdown("### Satisfaction Distribution")
 
