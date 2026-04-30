@@ -747,10 +747,11 @@ if page == "Current Wave" and selected_wave_id:
                 </div>
             </div>'''
             st.markdown(sat_card, unsafe_allow_html=True)
+            st.caption("*Survey question: Thinking about your interaction with Copilot during the shopping activity, how satisfied were you with your overall experience using Copilot for shopping?*")
 
         # Stage satisfaction cards matching report style (cream with info tooltip)
         stage_sat = scores.get('stage_sat', {})
-        stage_cards_html = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem">'
+        stage_cards_html = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:0.5rem">'
         for stage in STAGE_ORDER:
             sat = stage_sat.get(stage, {})
             n = sat.get('n', stage_n.get(stage, 0))
@@ -760,12 +761,13 @@ if page == "Current Wave" and selected_wave_id:
             <div style="background:#EFE2D1;border-radius:12px;padding:1.25rem;
                         text-align:center;box-shadow:0 2px 12px rgba(59,35,14,0.08);opacity:{opacity}">
                 <div style="font-size:0.68rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;
-                            color:#7A6A56;margin-bottom:0.4rem;display:flex;align-items:center;justify-content:center;gap:0.3rem;white-space:nowrap">{stage} <span style="font-size:0.72rem;color:#7A6A56;border:1.5px solid #7A6A56;border-radius:50%;width:14px;height:14px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-style:normal;text-transform:lowercase">i</span></div>
+                            color:#7A6A56;margin-bottom:0.4rem;white-space:nowrap">{stage}</div>
                 <div style="font-family:Georgia,serif;font-size:2rem;font-weight:400;color:#3B230E;line-height:1">{score_val}</div>
                 <div style="font-size:0.75rem;color:#7A6A56;margin-top:0.3rem">n = {n}</div>
             </div>'''
         stage_cards_html += '</div>'
         st.markdown(stage_cards_html, unsafe_allow_html=True)
+        st.caption("*Survey question: How well did Copilot help you accomplish this goal that you previously selected?*")
 
         st.markdown("### Satisfaction Distribution")
 
