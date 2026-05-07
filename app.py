@@ -882,8 +882,14 @@ if page == "Current Wave" and selected_wave_id:
 
     with report_cols[0]:
         try:
-            from report_template import generate_html_report
-            html_report = generate_html_report(scores, current_wave['wave_label'], current_wave['wave_date'], all_waves=all_waves_for_report)
+            import os
+            _report_path = os.path.join(os.path.dirname(__file__), 'Copilot Shopping \u2014 User Metrics Scorecard.html')
+            if os.path.exists(_report_path):
+                with open(_report_path, 'r', encoding='utf-8') as _rf:
+                    html_report = _rf.read()
+            else:
+                from report_template import generate_html_report
+                html_report = generate_html_report(scores, current_wave['wave_label'], current_wave['wave_date'], all_waves=all_waves_for_report)
             st.download_button(
                 "Download HTML Report",
                 html_report.encode('utf-8'),
@@ -897,8 +903,14 @@ if page == "Current Wave" and selected_wave_id:
 
     with report_cols[1]:
         try:
-            from report_template import generate_html_report
-            html_for_pdf = generate_html_report(scores, current_wave['wave_label'], current_wave['wave_date'], all_waves=all_waves_for_report)
+            import os
+            _report_path = os.path.join(os.path.dirname(__file__), 'Copilot Shopping \u2014 User Metrics Scorecard.html')
+            if os.path.exists(_report_path):
+                with open(_report_path, 'r', encoding='utf-8') as _rf:
+                    html_for_pdf = _rf.read()
+            else:
+                from report_template import generate_html_report
+                html_for_pdf = generate_html_report(scores, current_wave['wave_label'], current_wave['wave_date'], all_waves=all_waves_for_report)
             print_additions = '''
 <style>
 @media print {
@@ -933,8 +945,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     # -- ZIP for VibeHub --
     try:
-        from report_template import generate_html_report as _gen
-        html_zip = _gen(scores, current_wave['wave_label'], current_wave['wave_date'], all_waves=all_waves_for_report)
+        import os
+        _report_path = os.path.join(os.path.dirname(__file__), 'Copilot Shopping \u2014 User Metrics Scorecard.html')
+        if os.path.exists(_report_path):
+            with open(_report_path, 'r', encoding='utf-8') as _rf:
+                html_zip = _rf.read()
+        else:
+            from report_template import generate_html_report as _gen
+            html_zip = _gen(scores, current_wave['wave_label'], current_wave['wave_date'], all_waves=all_waves_for_report)
         zip_buf = BytesIO()
         with zipfile.ZipFile(zip_buf, 'w', zipfile.ZIP_DEFLATED) as zf:
             zf.writestr("index.html", html_zip)
