@@ -583,7 +583,9 @@ if page == "Current Wave" and selected_wave_id:
                 row = {'Domain': domain, 'Metric': m['name']}
                 for stage in STAGE_ORDER:
                     val = stage_data.get(stage, {}).get(m['name'])
-                    row[f"{stage}\n(n={stage_n.get(stage, 0)})"] = val if val is not None else None
+                    sn = stage_n.get(stage, 0)
+                    col_name = f"{stage} (n={sn})"
+                    row[col_name] = val if val is not None else None
                 rows.append(row)
 
         heatmap_df = pd.DataFrame(rows)
@@ -601,7 +603,7 @@ if page == "Current Wave" and selected_wave_id:
             for col in heatmap_df.columns:
                 if col in ('Domain', 'Metric'):
                     continue
-                stage_name = col.split('\n')[0]
+                stage_name = col.split(' (n=')[0]
                 if stage_name in _insufficient_stages:
                     styler = styler.map(
                         lambda v: 'background-color: rgba(122,106,86,0.08); color: #A89A88; font-weight: 400',
@@ -611,9 +613,12 @@ if page == "Current Wave" and selected_wave_id:
                     styler = styler.map(_color_cell, subset=[col])
             return styler
 
-        styled = heatmap_df.style.pipe(_style_heatmap).format(precision=1, na_rep="—")
+        styled = heatmap_df.style.pipe(_style_heatmap).format(precision=1, na_rep="\u2013")
         table_height = (len(heatmap_df) + 1) * 35 + 20
-        st.dataframe(styled, use_container_width=True, hide_index=True, height=table_height)
+        col_config = {col: st.column_config.NumberColumn(col, width="medium") for col in heatmap_df.columns if col not in ('Domain', 'Metric')}
+        col_config['Domain'] = st.column_config.TextColumn('Domain', width="small")
+        col_config['Metric'] = st.column_config.TextColumn('Metric', width="medium")
+        st.dataframe(styled, use_container_width=True, hide_index=True, height=table_height, column_config=col_config)
 
         for stage in STAGE_ORDER:
             sn = stage_n.get(stage, 0)
