@@ -382,7 +382,7 @@ if page == "Current Wave" and selected_wave_id:
     with tab_metrics:
         st.caption("DEEP DIVE")
         st.markdown(f"## All {len(scores.get('metrics', []))} Metrics")
-        st.info("For a detailed qualitative breakdown of why participants gave each metric rating, download the HTML Report from the Export section below.")
+        st.markdown('<div style="background:#EFE2D1;border-left:3px solid #2E4D4D;border-radius:8px;padding:0.75rem 1rem;font-size:0.88rem;color:#3B230E;line-height:1.6">For a detailed qualitative breakdown of why participants gave each metric rating, download the HTML Report from the Export section below.</div>', unsafe_allow_html=True)
         st.markdown("")
 
         # Build the metrics section as HTML matching the report style
@@ -430,13 +430,15 @@ if page == "Current Wave" and selected_wave_id:
                 dist = scores.get('distributions', {}).get(m['name'], {})
                 if dist:
                     max_count = max(dist.values()) if dist else 1
+                    total_dist = sum(dist.get(j, dist.get(str(j), 0)) for j in range(1, 6))
                     drawer_content += '<div class="bar-drawer-inner">'
                     for i in range(1, 6):
                         count = dist.get(i, dist.get(str(i), 0))
+                        pct = round(count / total_dist * 100, 1) if total_dist > 0 else 0
                         bar_h = max(3, int((count / max_count) * 55)) if max_count > 0 else 3
                         drawer_content += f'''
                         <div class="dist-bar-wrap">
-                            <div class="dist-count">{count}</div>
+                            <div class="dist-count"><span style="font-weight:600">{count}</span><br><span style="font-size:0.65rem;font-weight:400;opacity:0.7">{pct}%</span></div>
                             <div class="dist-bar" style="height:{bar_h}px;background:{color}"></div>
                             <div class="dist-label">{i}</div>
                         </div>'''
@@ -508,7 +510,7 @@ if page == "Current Wave" and selected_wave_id:
         </style>
         </head>
         <body>
-        <p class="intro">Scored on a 0&ndash;100 scale. <span class="badge">&#9654; Click any bar to expand details &amp; qualitative themes</span></p>
+        <p class="intro">Scored on a 0&ndash;100 scale. <span class="badge">&#9654; Click any bar to expand response distribution</span></p>
         <div class="legend-row">
             <div class="legend-chip"><div class="legend-dot" style="background:#2E4D4D"></div>Quality</div>
             <div class="legend-chip"><div class="legend-dot" style="background:#5B7E5B"></div>Trust &amp; Confidence</div>
@@ -801,14 +803,18 @@ if page == "Current Wave" and selected_wave_id:
         if sat_dist:
             labels = [SATISFACTION_LABELS.get(i, str(i)) for i in range(1, 6)]
             counts = [sat_dist.get(i, sat_dist.get(str(i), 0)) for i in range(1, 6)]
+            total = sum(counts) if sum(counts) > 0 else 1
+            pcts = [round(c / total * 100, 1) for c in counts]
+            text_labels = [f"<b>{c}</b><br><span style='font-size:10px;color:#7A6A56'>{p}%</span>" for c, p in zip(counts, pcts)]
 
             fig_sat = go.Figure()
             fig_sat.add_trace(go.Bar(
                 x=labels, y=counts,
                 marker=dict(color='#2E4D4D', opacity=0.55, cornerradius=4),
-                text=counts, textposition='outside',
+                text=text_labels, textposition='outside',
                 textfont=dict(size=14, color='#3B230E', family="Georgia, serif"),
-                hovertemplate='%{x}: %{y} responses<extra></extra>',
+                hovertemplate='%{x}: %{y} responses (%{customdata}%)<extra></extra>',
+                customdata=pcts,
             ))
             max_count = max(counts) if counts else 1
             fig_sat.update_layout(
