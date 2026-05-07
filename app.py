@@ -382,6 +382,7 @@ if page == "Current Wave" and selected_wave_id:
     with tab_metrics:
         st.caption("DEEP DIVE")
         st.markdown(f"## All {len(scores.get('metrics', []))} Metrics")
+        st.info("For a detailed qualitative breakdown of why participants gave each metric rating, download the HTML Report from the Export section below.")
         st.markdown("")
 
         # Build the metrics section as HTML matching the report style
@@ -441,24 +442,6 @@ if page == "Current Wave" and selected_wave_id:
                         </div>'''
                     drawer_content += '</div>'
 
-                # Qualitative themes
-                themes = scores.get('qualitative_themes', {}).get(m['name'], {})
-                if themes:
-                    drawer_content += '<div class="drawer-themes"><div class="drawer-themes-title">Why participants gave this rating</div>'
-                    for key, accent, icon in [('high', '#3A7D44', '&#9650;'), ('low', '#B84233', '&#9660;')]:
-                        g = themes.get(key)
-                        if g:
-                            drawer_content += f'<div style="margin-bottom:0.5rem"><div style="font-size:0.72rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:{accent};margin-bottom:0.5rem">{icon} {g["label"]} ({g["count"]} responses)</div>'
-                            for t in g.get('themes', []):
-                                drawer_content += f'<div class="theme-item"><div class="theme-label-row"><div class="theme-dot" style="background:{accent}"></div><span class="theme-name">{t["label"]}</span><span class="theme-count">({t["count"]})</span></div>'
-                                if t.get('description'):
-                                    drawer_content += f'<div class="theme-desc">{t["description"]}</div>'
-                                for q in t.get('quotes', []):
-                                    import html as html_mod
-                                    drawer_content += f'<div class="theme-quote">\u201C{html_mod.escape(q)}\u201D</div>'
-                                drawer_content += '</div>'
-                            drawer_content += '</div>'
-                    drawer_content += '</div>'
 
                 bars_html += f'''
                 <div class="bar-row" onclick="toggleDrawer(this)">
