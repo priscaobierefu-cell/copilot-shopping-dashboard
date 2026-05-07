@@ -450,7 +450,9 @@ if page == "Current Wave" and selected_wave_id:
                         if g:
                             drawer_content += f'<div style="margin-bottom:0.5rem"><div style="font-size:0.72rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:{accent};margin-bottom:0.5rem">{icon} {g["label"]} ({g["count"]} responses)</div>'
                             for t in g.get('themes', []):
-                                drawer_content += f'<div class="theme-item"><div class="theme-label-row"><div class="theme-dot" style="background:{accent}"></div><span class="theme-name">{t["label"]}</span><span class="theme-pct">{t["pct"]}%</span><span class="theme-count">({t["count"]})</span></div>'
+                                drawer_content += f'<div class="theme-item"><div class="theme-label-row"><div class="theme-dot" style="background:{accent}"></div><span class="theme-name">{t["label"]}</span><span class="theme-count">({t["count"]})</span></div>'
+                                if t.get('description'):
+                                    drawer_content += f'<div class="theme-desc">{t["description"]}</div>'
                                 for q in t.get('quotes', []):
                                     import html as html_mod
                                     drawer_content += f'<div class="theme-quote">\u201C{html_mod.escape(q)}\u201D</div>'
